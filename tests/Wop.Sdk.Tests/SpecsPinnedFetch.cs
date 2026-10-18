@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 
 namespace Wop.Sdk.Tests;
