@@ -94,7 +94,10 @@ public class InteropConformanceTests
                 }
                 Assert.Equal(want, got);
             }
-            Assert.Equal(c.Expected.Headers.Count, draft.Headers.Count);
+            // x-wop-request-id 是规格附录 I 的可选透传头（恒不入签、网关日志关联用），
+            // 不属于 interop 冻结的协议头合同（fixture sha256 钉死不可改），比对前剥离
+            var protocolHeaderCount = draft.Headers.Count - (draft.Headers.ContainsKey(WopHeaders.RequestId) ? 1 : 0);
+            Assert.Equal(c.Expected.Headers.Count, protocolHeaderCount);
         }
         Assert.Equal(6, builds);
     }

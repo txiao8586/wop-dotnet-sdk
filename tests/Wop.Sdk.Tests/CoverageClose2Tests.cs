@@ -142,3 +142,82 @@ public class UnicodeEscapeTests
         Assert.Equal("AA", EncryptedEnvelope.Extract(Encoding.UTF8.GetBytes(body)));
     }
 }
+
+/// <summary>WopClient 实例链路与 WopCrypto 密钥缺失分支闭合（CI 门禁 ≥98% 行+分支）。</summary>
+public class CoverageClose5Tests
+{
+    static string Vec(string dotted)
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(File.OpenRead(
+            Path.Combine(AppContext.BaseDirectory, "fixtures", "crypto-vectors.json")));
+        var node = doc.RootElement;
+        foreach (var part in dotted.Split('.')) node = node.GetProperty(part);
+        return node.GetString()!;
+    }
+
+    [Fact]
+    public void FromConfig_null配置_拒绝()
+    {
+        var ex = Assert.Throws<WopException>(() => WopClient.FromConfig(null!));
+        Assert.Contains("config 为空", ex.Message);
+    }
+
+    [Fact]
+    public void Execute_path为null按空串拒绝_且非2xx走网关异常()
+    {
+        var transport = new CannedTransport();
+        var client = new WopClientBuilder()
+            .AppKey("demo-app")
+            .Suite("WOP-RSA3072-SHA256")
+            .MerchantPrivateKey(Vec("keys.rsa3072.privatePkcs8B64"))
+            .PlatformPublicKey(Vec("keys.rsa3072.publicSpkiB64"))
+            .GatewayBaseUrl("https://gw.example.com/gateway")
+            .Build(transport);
+
+        // path ?? "" 分支：null 归一为空串后 fail-fast
+        Assert.Throws<WopException>(() => client.Execute("GET", null!, null, SecurityLevel.L0));
+
+        // 实例 transport 发送链 + EnsureSuccessStatus 非 2xx 拦截
+        var ex = Assert.Throws<WopGatewayResponseException>(() => client.Execute("GET", "/x", null, SecurityLevel.L0));
+        Assert.Equal(502, ex.StatusCode);
+
+        // 2xx 回路：进 Verify 并以 VerifyResult（失败）落回 return 语句
+        transport.Status = 200;
+        var result = client.Execute("GET", "/x", null, SecurityLevel.L0);
+        Assert.NotNull(result);
+
+        // <200：第一条比较即短路（&& 短路弧）
+        transport.Status = 150;
+        Assert.Throws<WopGatewayResponseException>(() => client.Execute("GET", "/x", null, SecurityLevel.L0));
+    }
+
+    [Fact]
+    public void Crypto_SM2密钥缺失或userId空_拒绝()
+    {
+        var suite = AlgorithmSuite.Parse("WOP-SM2-SM3");
+        var uid = Encoding.UTF8.GetBytes("1234567812345678");
+        var msg = Encoding.UTF8.GetBytes("m");
+
+        var noKey = Assert.Throws<WopException>(() => WopCrypto.Sign(suite, new AsymmetricKeyMaterial(), msg, uid));
+        Assert.Contains("SM2 套件缺少私钥", noKey.Message);
+
+        var priv = AsymmetricKeyMaterial.ParsePrivate(Vec("keys.sm2.privateDB64"), suite);
+        Assert.Throws<WopException>(() => WopCrypto.Sign(suite, priv, msg, null));
+        Assert.Throws<WopException>(() => WopCrypto.Sign(suite, priv, msg, Array.Empty<byte>()));
+
+        var sig = Codec.EncodeB64Url(new byte[64]); // 定长 64 通过前置校验即可触及密钥检查
+        var noPub = Assert.Throws<WopException>(() => WopCrypto.Verify(suite, new AsymmetricKeyMaterial(), msg, sig, uid));
+        Assert.Contains("SM2 套件缺少验签公钥", noPub.Message);
+
+        var pub = AsymmetricKeyMaterial.ParsePublic(Vec("keys.sm2.publicPointB64"), suite);
+        Assert.Throws<WopException>(() => WopCrypto.Verify(suite, pub, msg, sig, null));
+    }
+
+    sealed class CannedTransport : IWopTransport
+    {
+        public int Status = 502;
+
+        public TransportResponse Send(RequestDraft draft) =>
+            new(Status, new Dictionary<string, string>(), Encoding.UTF8.GetBytes("err"));
+    }
+}

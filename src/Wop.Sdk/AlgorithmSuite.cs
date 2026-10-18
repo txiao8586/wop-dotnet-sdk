@@ -54,8 +54,12 @@ public sealed class AlgorithmSuite
     public int CekLength => IsSm2 ? 16 : 32;
 
     /// <summary>签名定长（spec §3.3①：定长编码使格式校验可前置）：
-    /// RSA = 密钥字节数（3072→384B，4096→512B）；SM2 = r‖s 64B。</summary>
+    /// RSA = 密钥字节数（2048→256B，3072→384B，4096→512B）；SM2 = r‖s 64B。</summary>
     public int SignatureLength => IsSm2 ? 64 : KeyBits / 8;
+
+    private static readonly AlgorithmSuite Rsa2048 = new(
+        "WOP-RSA2048-SHA256", SuiteFamily.Rsa, 2048,
+        "SHA256withRSA", "AES-256-GCM", "RSA-2048-OAEP", "sha-256");
 
     private static readonly AlgorithmSuite Rsa3072 = new(
         "WOP-RSA3072-SHA256", SuiteFamily.Rsa, 3072,
@@ -86,6 +90,7 @@ public sealed class AlgorithmSuite
         }
         return (parts[1], parts[2]) switch
         {
+            ("RSA2048", "SHA256") => Rsa2048,
             ("RSA3072", "SHA256") => Rsa3072,
             ("RSA4096", "SHA256") => Rsa4096,
             ("SM2", "SM3") => Sm2,

@@ -187,9 +187,19 @@ public sealed class MerchantJourneySteps
     [When(@"商户两次构建相同 L0 请求 ""(.+)"" ""(.+)"" 带 body")]
     public void WhenBuildL0Twice(string method, string path)
     {
-        var c = Client();
-        _draft1 = c.BuildRequest(method, path, Body, SecurityLevel.L0);
-        _draft2 = c.BuildRequest(method, path, Body, SecurityLevel.L0);
+        // 附录 I/I3：缺省 requestId 属 CSPRNG 豁免项，注入固定生成器后全头可重放
+        var prev = RequestId.Generator;
+        RequestId.Generator = () => "fixedreq000000000000000000000001";
+        try
+        {
+            var c = Client();
+            _draft1 = c.BuildRequest(method, path, Body, SecurityLevel.L0);
+            _draft2 = c.BuildRequest(method, path, Body, SecurityLevel.L0);
+        }
+        finally
+        {
+            RequestId.Generator = prev;
+        }
     }
 
     [When(@"商户构建 L2 请求 ""(.+)"" ""(.+)"" 带 body")]

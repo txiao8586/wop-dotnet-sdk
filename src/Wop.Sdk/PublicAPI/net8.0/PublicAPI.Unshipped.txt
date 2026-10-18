@@ -20,6 +20,11 @@ Wop.Sdk.DekPayload.Key.get -> byte[]!
 Wop.Sdk.DekPayload.MatchesSuite(Wop.Sdk.AlgorithmSuite! suite) -> bool
 Wop.Sdk.EncryptHeader
 Wop.Sdk.EncryptedEnvelope
+Wop.Sdk.HttpClientSettings
+Wop.Sdk.HttpClientSettings.ConnectTimeout.get -> int
+Wop.Sdk.HttpClientSettings.HttpClientSettings(int connectTimeout, int readTimeout, int maxRetryCount) -> void
+Wop.Sdk.HttpClientSettings.MaxRetryCount.get -> int
+Wop.Sdk.HttpClientSettings.ReadTimeout.get -> int
 Wop.Sdk.HttpClientTransport
 Wop.Sdk.HttpClientTransport.HttpClientTransport(System.Net.Http.HttpClient! client, string! baseUrl) -> void
 Wop.Sdk.HttpClientTransport.HttpClientTransport(System.Net.Http.HttpMessageHandler! handler, string! baseUrl) -> void
@@ -57,19 +62,25 @@ Wop.Sdk.VerifyResult.Plaintext.get -> byte[]?
 Wop.Sdk.VerifyResult.Reason.get -> string?
 Wop.Sdk.WopClient
 Wop.Sdk.WopClient.BuildRequest(string! method, string! path, byte[]? body, Wop.Sdk.SecurityLevel level) -> Wop.Sdk.RequestDraft!
+Wop.Sdk.WopClient.BuildRequest(string! method, string! path, byte[]? body, Wop.Sdk.SecurityLevel level, string? requestId) -> Wop.Sdk.RequestDraft!
 Wop.Sdk.WopClient.Execute(Wop.Sdk.IWopTransport! transport, string! method, string! path, byte[]? body, Wop.Sdk.SecurityLevel level) -> (Wop.Sdk.VerifyResult! Result, Wop.Sdk.TransportResponse! Response)
+Wop.Sdk.WopClient.Execute(Wop.Sdk.IWopTransport! transport, string! method, string! path, byte[]? body, Wop.Sdk.SecurityLevel level, string? requestId) -> (Wop.Sdk.VerifyResult! Result, Wop.Sdk.TransportResponse! Response)
+Wop.Sdk.WopClient.Execute(string! method, string! path, byte[]? body, Wop.Sdk.SecurityLevel level) -> Wop.Sdk.VerifyResult!
+Wop.Sdk.WopClient.Execute(string! method, string! path, byte[]? body, Wop.Sdk.SecurityLevel level, string? requestId) -> Wop.Sdk.VerifyResult!
 Wop.Sdk.WopClient.Suite.get -> Wop.Sdk.AlgorithmSuite!
 Wop.Sdk.WopClient.VerifyCallback(string! callbackUrl, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string!>>! headers, byte[]? body) -> Wop.Sdk.VerifyResult!
 Wop.Sdk.WopClient.VerifyResponse(string! method, string! path, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string!>>! headers, byte[]? body) -> Wop.Sdk.VerifyResult!
 Wop.Sdk.WopClientBuilder
 Wop.Sdk.WopClientBuilder.AppKey(string! appKey) -> Wop.Sdk.WopClientBuilder!
 Wop.Sdk.WopClientBuilder.Build() -> Wop.Sdk.WopClient!
+Wop.Sdk.WopClientBuilder.Build(Wop.Sdk.IWopTransport! transport) -> Wop.Sdk.WopClient!
 Wop.Sdk.WopClientBuilder.ExpiredSeconds(long seconds) -> Wop.Sdk.WopClientBuilder!
 Wop.Sdk.WopClientBuilder.GatewayBaseUrl(string! baseUrl) -> Wop.Sdk.WopClientBuilder!
 Wop.Sdk.WopClientBuilder.MerchantPrivateKey(string! material) -> Wop.Sdk.WopClientBuilder!
 Wop.Sdk.WopClientBuilder.PlatformPublicKey(string! material) -> Wop.Sdk.WopClientBuilder!
 Wop.Sdk.WopClientBuilder.Suite(string! securityReq) -> Wop.Sdk.WopClientBuilder!
 Wop.Sdk.WopClientBuilder.WopClientBuilder() -> void
+Wop.Sdk.WopConfigLoader
 Wop.Sdk.WopErrorCode
 Wop.Sdk.WopErrorCode.AlgMismatch = 7 -> Wop.Sdk.WopErrorCode
 Wop.Sdk.WopErrorCode.Config = 0 -> Wop.Sdk.WopErrorCode
@@ -82,19 +93,54 @@ Wop.Sdk.WopErrorCode.VerifyFailed = 5 -> Wop.Sdk.WopErrorCode
 Wop.Sdk.WopException
 Wop.Sdk.WopException.ErrorCode.get -> Wop.Sdk.WopErrorCode
 Wop.Sdk.WopException.WopException(Wop.Sdk.WopErrorCode errorCode, string! message) -> void
+Wop.Sdk.WopGatewayResponseException
+Wop.Sdk.WopGatewayResponseException.Body.get -> byte[]!
+Wop.Sdk.WopGatewayResponseException.StatusCode.get -> int
+Wop.Sdk.WopGatewayResponseException.WopGatewayResponseException(int statusCode, byte[]? body) -> void
 Wop.Sdk.WopHeaders
+Wop.Sdk.WopSdkConfig
+Wop.Sdk.WopSdkConfig.AppKey.get -> string!
+Wop.Sdk.WopSdkConfig.BackupServerRoots.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Wop.Sdk.WopSdkConfig.ExpiredSeconds.get -> long
+Wop.Sdk.WopSdkConfig.HttpClient.get -> Wop.Sdk.HttpClientSettings!
+Wop.Sdk.WopSdkConfig.MerchantPrivateKey.get -> string!
+Wop.Sdk.WopSdkConfig.PlatformPublicKey.get -> string!
+Wop.Sdk.WopSdkConfig.ServerRoot.get -> string!
+Wop.Sdk.WopSdkConfig.Suite.get -> string!
+Wop.Sdk.WopSdkConfig.Transport.get -> Wop.Sdk.IWopTransport?
+Wop.Sdk.WopSdkConfigBuilder
+Wop.Sdk.WopSdkConfigBuilder.AppKey(string! appKey) -> Wop.Sdk.WopSdkConfigBuilder!
+Wop.Sdk.WopSdkConfigBuilder.BackupServerRoots(System.Collections.Generic.IReadOnlyList<string!>! backupServerRoots) -> Wop.Sdk.WopSdkConfigBuilder!
+Wop.Sdk.WopSdkConfigBuilder.Build() -> Wop.Sdk.WopSdkConfig!
+Wop.Sdk.WopSdkConfigBuilder.ExpiredSeconds(long expiredSeconds) -> Wop.Sdk.WopSdkConfigBuilder!
+Wop.Sdk.WopSdkConfigBuilder.HttpClient(Wop.Sdk.HttpClientSettings! httpClient) -> Wop.Sdk.WopSdkConfigBuilder!
+Wop.Sdk.WopSdkConfigBuilder.MerchantPrivateKey(string! merchantPrivateKey) -> Wop.Sdk.WopSdkConfigBuilder!
+Wop.Sdk.WopSdkConfigBuilder.PlatformPublicKey(string! platformPublicKey) -> Wop.Sdk.WopSdkConfigBuilder!
+Wop.Sdk.WopSdkConfigBuilder.ServerRoot(string! serverRoot) -> Wop.Sdk.WopSdkConfigBuilder!
+Wop.Sdk.WopSdkConfigBuilder.Suite(string! suite) -> Wop.Sdk.WopSdkConfigBuilder!
+Wop.Sdk.WopSdkConfigBuilder.Transport(Wop.Sdk.IWopTransport? transport) -> Wop.Sdk.WopSdkConfigBuilder!
+Wop.Sdk.WopSdkConfigBuilder.WopSdkConfigBuilder() -> void
 Wop.Sdk.WopSignProtocol
+const Wop.Sdk.HttpClientSettings.DefaultConnectTimeout = 10000 -> int
+const Wop.Sdk.HttpClientSettings.DefaultMaxRetryCount = 3 -> int
+const Wop.Sdk.HttpClientSettings.DefaultReadTimeout = 30000 -> int
 const Wop.Sdk.HttpClientTransport.MaxResponseBytes = 11534336 -> int
+const Wop.Sdk.WopConfigLoader.ConfigFileEnv = "WOP_SDK_CONFIG" -> string!
+const Wop.Sdk.WopConfigLoader.ConfigFileEnvOverride = "WOP_SDK_CONFIG_FILE" -> string!
 const Wop.Sdk.WopHeaders.AppKey = "x-wop-appkey" -> string!
 const Wop.Sdk.WopHeaders.ContentDigest = "x-wop-content-digest" -> string!
 const Wop.Sdk.WopHeaders.Encrypt = "x-wop-encrypt" -> string!
 const Wop.Sdk.WopHeaders.Nonce = "x-wop-nonce" -> string!
+const Wop.Sdk.WopHeaders.RequestId = "x-wop-request-id" -> string!
 const Wop.Sdk.WopHeaders.Sign = "x-wop-sign" -> string!
 const Wop.Sdk.WopHeaders.Timestamp = "x-wop-timestamp" -> string!
 const Wop.Sdk.WopSignProtocol.ExpiredSecondsDefault = 1800 -> long
 const Wop.Sdk.WopSignProtocol.ExpiredSecondsMax = 86400 -> long
 const Wop.Sdk.WopSignProtocol.Version = "v1" -> string!
+override Wop.Sdk.HttpClientSettings.Equals(object? obj) -> bool
+override Wop.Sdk.HttpClientSettings.GetHashCode() -> int
 override Wop.Sdk.WopException.ToString() -> string!
+override Wop.Sdk.WopSdkConfig.ToString() -> string!
 static Wop.Sdk.AlgorithmSuite.Parse(string! securityReq) -> Wop.Sdk.AlgorithmSuite!
 static Wop.Sdk.CanonicalRequest.Build(string! authString, string! method, string! canonicalUri, string! canonicalQueryString, string! canonicalHeaders) -> string!
 static Wop.Sdk.CanonicalRequest.CanonicalHeaders(System.Collections.Generic.IReadOnlyDictionary<string!, string!>! headers) -> string!
@@ -114,7 +160,19 @@ static Wop.Sdk.EncryptHeader.BuildL2(string! dekB64Url) -> string!
 static Wop.Sdk.EncryptHeader.Parse(string! value) -> (string! Level, string! DekB64Url)
 static Wop.Sdk.EncryptedEnvelope.Extract(byte[]! wireBody) -> string!
 static Wop.Sdk.EncryptedEnvelope.Wrap(string! cipherB64Url) -> byte[]!
+static Wop.Sdk.HttpClientSettings.Defaults.get -> Wop.Sdk.HttpClientSettings!
+static Wop.Sdk.HttpClientTransport.Create(string! baseUrl, Wop.Sdk.HttpClientSettings! settings) -> Wop.Sdk.HttpClientTransport!
 static Wop.Sdk.SignHeader.Build(string! securityReq, long expiredSeconds, System.Collections.Generic.IReadOnlyList<string!>! signedHeaders, string! signature) -> string!
 static Wop.Sdk.SignHeader.Parse(string! header) -> Wop.Sdk.SignHeader!
 static Wop.Sdk.WopClient.Builder() -> Wop.Sdk.WopClientBuilder!
+static Wop.Sdk.WopClient.DefaultClient() -> Wop.Sdk.WopClient!
+static Wop.Sdk.WopClient.FromConfig(Wop.Sdk.WopSdkConfig! config) -> Wop.Sdk.WopClient!
+static Wop.Sdk.WopClient.OutboundLogger.get -> System.Action<string!>?
+static Wop.Sdk.WopClient.OutboundLogger.set -> void
+static Wop.Sdk.WopClient.ResetDefault() -> void
+static Wop.Sdk.WopConfigLoader.ClearCache() -> void
+static Wop.Sdk.WopConfigLoader.Load(System.IO.FileInfo! path) -> Wop.Sdk.WopSdkConfig!
+static Wop.Sdk.WopConfigLoader.Load(string! location) -> Wop.Sdk.WopSdkConfig!
+static Wop.Sdk.WopConfigLoader.LoadDefault() -> Wop.Sdk.WopSdkConfig!
 static Wop.Sdk.WopException.Fuzzy(Wop.Sdk.WopErrorCode code) -> Wop.Sdk.WopException!
+static Wop.Sdk.WopSdkConfig.Builder() -> Wop.Sdk.WopSdkConfigBuilder!

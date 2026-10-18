@@ -47,5 +47,6 @@ public static class CanonicalRequest
                nz(canonicalQueryString) + "\n" +
                nz(canonicalHeaders);
     }
+    /// <summary>空值归一为空串（canonical 段防御）。</summary>
     private static string nz(string? s) => s ?? "";
 }

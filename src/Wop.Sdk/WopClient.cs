@@ -12,6 +12,15 @@ namespace Wop.Sdk;
 /// 线程安全（不可变）。</summary>
 public sealed class WopClient
 {
+    private static readonly object DefaultLock = new();
+    private static WopClient? _defaultClient;
+
+    /// <summary>出向日志钩子（附录 I/I3 日志义务）：出向请求构造点收到一行含最终
+    /// x-wop-request-id 值的日志（非敏感，豁免脱敏）。null → 缺省写 Console.Out
+    /// （I3 INFO 级惯用通道：stderr 在容器采集器侧标 ERROR）。
+    /// 测试/编排可整体替换。</summary>
+    public static Action<string>? OutboundLogger { get; set; }
+
     private readonly string _appKey;
     private readonly AlgorithmSuite _suite;
     private readonly AsymmetricKeyMaterial _merchantPrivate;
@@ -20,8 +29,9 @@ public sealed class WopClient
     private readonly Func<long> _clock;
     private readonly Func<string> _nonceGen;
     private readonly SecureRandom _random;
+    private readonly IWopTransport? _transport;
 
-    internal WopClient(WopClientBuilder b)
+    internal WopClient(WopClientBuilder b, IWopTransport? transport)
     {
         _appKey = b.AppKeyValue;
         // Build() 已完成全部前置校验（原子装配，I6），此处不再防御
@@ -32,6 +42,7 @@ public sealed class WopClient
         _clock = b.ClockValue;
         _nonceGen = b.NonceGenValue;
         _random = b.RandomValue;
+        _transport = transport;
     }
 
     /// <summary>已装配的算法套件（只读）。</summary>
@@ -40,23 +51,70 @@ public sealed class WopClient
     /// <summary>创建构建器。</summary>
     public static WopClientBuilder Builder() => new();
 
+    /// <summary>惰性：loadDefault → 传输发现 → 构造；缓存复用（K15）。</summary>
+    public static WopClient DefaultClient()
+    {
+        lock (DefaultLock)
+        {
+            if (_defaultClient == null)
+            {
+                _defaultClient = FromConfig(WopConfigLoader.LoadDefault());
+            }
+            return _defaultClient;
+        }
+    }
+
+    /// <summary>显式配置构造（不进默认实例缓存）。</summary>
+    public static WopClient FromConfig(WopSdkConfig config)
+    {
+        if (config == null)
+        {
+            throw new WopException(WopErrorCode.Config, "config 为空");
+        }
+        var transport = config.Transport
+                        ?? HttpClientTransport.Create(config.ServerRoot, config.HttpClient);
+        return Builder()
+            .AppKey(config.AppKey)
+            .Suite(config.Suite)
+            .MerchantPrivateKey(config.MerchantPrivateKey)
+            .PlatformPublicKey(config.PlatformPublicKey)
+            .ExpiredSeconds(config.ExpiredSeconds)
+            .GatewayBaseUrl(config.ServerRoot)
+            .Build(transport);
+    }
+
+    /// <summary>丢弃默认实例与初始化状态；轮换须先 <see cref="WopConfigLoader.ClearCache"/>（K26）。</summary>
+    public static void ResetDefault()
+    {
+        lock (DefaultLock)
+        {
+            _defaultClient = null;
+        }
+    }
+
     // ==================== 出向 ====================
 
     /// <summary>构造请求草稿（headers + wireBody，零网络 IO；F9：CSPRNG nonce、毫秒时间戳、
     /// expiredSeconds 组装）。除 CSPRNG 值外同输入同输出（幂等）。
     /// D2：无 body（GET/空体）→ digest 头缺席；有 body 必产且必入 signedHeaders（I1）。
     /// L2 需要非空 body。</summary>
-    public RequestDraft BuildRequest(string method, string path, byte[]? body, SecurityLevel level)
+    public RequestDraft BuildRequest(string method, string path, byte[]? body, SecurityLevel level) =>
+        BuildRequest(method, path, body, level, requestId: null);
+
+    /// <summary>带商户请求标识的出向构造（wop-specs 附录 I）：<paramref name="requestId"/>
+    /// 为不含个人数据的不透明关联标识，恒不入签（签名落盘后写入头）；null/空白 → 缺省生成
+    /// UUID 去连字符（头恒存在），显式传值 trim 后原值上行；控制字符（trim 前原值扫描）与
+    /// 超长（trim 后 UTF-8 字节 &gt; 128）构造即拒。</summary>
+    public RequestDraft BuildRequest(string method, string path, byte[]? body, SecurityLevel level, string? requestId)
     {
         var upperMethod = (method ?? "").Trim().ToUpperInvariant();
         if (upperMethod.Length == 0)
         {
             throw new WopException(WopErrorCode.Config, "HTTP method 为空");
         }
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            throw new WopException(WopErrorCode.Config, "请求 path 为空");
-        }
+        ConfigValidator.ValidateApiPath(path ?? "");
+        // 附录 I/I2：requestId 构造即校验（fail-fast，不延迟到发送前）
+        var resolvedRequestId = RequestId.Resolve(requestId);
         var hasBody = body is { Length: > 0 };
         if (level == SecurityLevel.L2 && !hasBody)
         {
@@ -89,7 +147,7 @@ public sealed class WopClient
 
         var authString = WopSignProtocol.Version + "/" +
                          _expiredSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        var canonical = CanonicalRequest.Build(authString, upperMethod, path, "",
+        var canonical = CanonicalRequest.Build(authString, upperMethod, path!, "",
             CanonicalRequest.CanonicalHeaders(headers));
         // D14：出向签名 userId = 出向 x-wop-appkey 头值（= _appKey）
         var signature = WopCrypto.Sign(_suite, _merchantPrivate, Encoding.UTF8.GetBytes(canonical), Encoding.UTF8.GetBytes(_appKey), random: _random);
@@ -100,7 +158,21 @@ public sealed class WopClient
         {
             [WopHeaders.Sign] = signHeader,
         };
-        return new RequestDraft(upperMethod, path, outHeaders, wireBody);
+        // requestId 透传头（附录 I）：在签名落盘**之后**写入，保证不在 signedHeaders 冻结清单中；
+        // 商户未传（含 trim 后为空）→ 缺省生成，最终头恒存在
+        var effectiveRequestId = resolvedRequestId ?? RequestId.Generator();
+        outHeaders[WopHeaders.RequestId] = effectiveRequestId;
+        // 附录 I/I3 日志义务：出向构造点打印最终透传头值（非敏感，豁免脱敏），供网关 AccessLog 关联排查
+        var logLine = WopHeaders.RequestId + "=" + effectiveRequestId + " " + upperMethod + " " + path;
+        if (OutboundLogger != null)
+        {
+            OutboundLogger(logLine);
+        }
+        else
+        {
+            Console.Out.WriteLine(logLine);
+        }
+        return new RequestDraft(upperMethod, path!, outHeaders, wireBody);
     }
 
     /// <summary>L2 数字信封：CSPRNG CEK + IV（I4：IV 生成点唯一）→
@@ -149,17 +221,52 @@ public sealed class WopClient
         return Verify("POST", path, headers, body);
     }
 
+    /// <summary>一站式调用：BuildRequest → 内置 transport 发送 → 非 2xx 拦截 → VerifyResponse。</summary>
+    public VerifyResult Execute(string method, string path, byte[]? body, SecurityLevel level) =>
+        Execute(method, path, body, level, requestId: null);
+
+    /// <summary>一站式调用（附录 I）：requestId 经请求级选项透传上行，语义同
+    /// <see cref="BuildRequest(string,string,byte[],SecurityLevel,string?)"/>。</summary>
+    public VerifyResult Execute(string method, string path, byte[]? body, SecurityLevel level, string? requestId)
+    {
+        if (_transport == null)
+        {
+            throw new WopException(WopErrorCode.Config, "未配置传输层，请使用 FromConfig 或 DefaultClient");
+        }
+        var draft = BuildRequest(method, path, body, level, requestId);
+        var response = _transport.Send(draft);
+        EnsureSuccessStatus(response);
+        return Verify(draft.Method, draft.Path, response.Headers, response.Body);
+    }
+
     /// <summary>一站式调用：BuildRequest → transport 发送 → VerifyResponse（F6）。</summary>
     public (VerifyResult Result, TransportResponse Response) Execute(IWopTransport transport,
-        string method, string path, byte[]? body, SecurityLevel level)
+        string method, string path, byte[]? body, SecurityLevel level) =>
+        Execute(transport, method, path, body, level, requestId: null);
+
+    /// <summary>一站式调用（附录 I）：requestId 经请求级选项透传上行，语义同
+    /// <see cref="BuildRequest(string,string,byte[],SecurityLevel,string?)"/>。</summary>
+    public (VerifyResult Result, TransportResponse Response) Execute(IWopTransport transport,
+        string method, string path, byte[]? body, SecurityLevel level, string? requestId)
     {
         if (transport == null)
         {
             throw new WopException(WopErrorCode.Config, "transport 为空");
         }
-        var draft = BuildRequest(method, path, body, level);
+        var draft = BuildRequest(method, path, body, level, requestId);
         var response = transport.Send(draft);
+        EnsureSuccessStatus(response);
         return (Verify(draft.Method, draft.Path, response.Headers, response.Body), response);
+    }
+
+    /// <summary>非 2xx 不进验签，抛网关响应异常（§7.5）。</summary>
+    private static void EnsureSuccessStatus(TransportResponse response)
+    {
+        if (response.StatusCode >= 200 && response.StatusCode < 300)
+        {
+            return;
+        }
+        throw new WopGatewayResponseException(response.StatusCode, response.Body);
     }
 
     /// <summary>验签统一入口：头名归一化（lowercase）后转 VerifyInbound；WopException → Fail。</summary>
@@ -365,7 +472,12 @@ public sealed class WopClientBuilder
     }
 
     /// <summary>构建客户端：套件原子装配 + 密钥格式/位数校验（错误均明确）。</summary>
-    public WopClient Build()
+    public WopClient Build() => BuildInternal(null);
+
+    /// <summary>构建客户端并绑定传输（配置层 FromConfig 使用）。</summary>
+    public WopClient Build(IWopTransport transport) => BuildInternal(transport);
+
+    private WopClient BuildInternal(IWopTransport? transport)
     {
         if (string.IsNullOrWhiteSpace(AppKeyValue))
         {
@@ -388,6 +500,6 @@ public sealed class WopClientBuilder
             throw new WopException(WopErrorCode.Protocol,
                 "expiredSeconds 超出允许范围 (0, " + WopSignProtocol.ExpiredSecondsMax + "]");
         }
-        return new WopClient(this);
+        return new WopClient(this, transport);
     }
 }

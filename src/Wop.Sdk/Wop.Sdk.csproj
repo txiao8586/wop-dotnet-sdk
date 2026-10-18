@@ -10,7 +10,7 @@
     <PackageId>Wop.Sdk</PackageId>
     <Authors>wop-platform</Authors>
     <PackageProjectUrl>https://github.com/wop-platform/wop-dotnet-sdk</PackageProjectUrl>
-    <Description>WOP 网关商户侧官方 .NET SDK：协议核心（套件解析/canonicalRequest/结构化签名/content-digest/L2 数字信封/验签解密）+ HttpClient 适配层。RSA3072/4096 与 SM2-SM3 双套件（BouncyCastle.Cryptography）。</Description>
+    <Description>WOP 网关商户侧官方 .NET SDK：协议核心（套件解析/canonicalRequest/结构化签名/content-digest/L2 数字信封/验签解密）+ HttpClient 适配层。RSA2048/3072/4096 与 SM2-SM3 双套件（BouncyCastle.Cryptography）。</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.en.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/wop-platform/wop-dotnet-sdk</RepositoryUrl>
@@ -27,6 +27,13 @@
 
   <ItemGroup>
     <None Include="..\..\README.en.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\config\wopSdkConfigDefault.json" Pack="true" PackagePath="config\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Config\wopSdkConfig.json">
+      <LogicalName>config/wopSdkConfig.json</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
   <!-- 公共 API 快照门禁（wop-platform 统一纪律，对齐 wop-typescript-sdk api-extractor 模式）：
        RS0016（新增未声明）/RS0017（删除未声明）经 TreatWarningsAsErrors 升 error，CI 的
@@ -45,6 +52,9 @@
   <ItemGroup>
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
     <PackageReference Include="System.Memory" Version="4.6.3" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
+    <!-- 配置层 ConfigJsonParser 使用 Utf8JsonReader/JsonSerializer（K8）；net8.0 内置于框架，
+         netstandard2.0 需显式引用（P0 配置层此前缺失，分支无法编译） -->
+    <PackageReference Include="System.Text.Json" Version="8.0.5" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
   </ItemGroup>
 
 </Project>

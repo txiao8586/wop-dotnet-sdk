@@ -9,6 +9,9 @@ public static class WopHeaders
     public const string Timestamp = "x-wop-timestamp";
     public const string Nonce = "x-wop-nonce";
     public const string Encrypt = "x-wop-encrypt";
+
+    /// <summary>商户请求标识透传头（wop-specs 附录 I：唯一可选透传头，恒不入签）。</summary>
+    public const string RequestId = "x-wop-request-id";
 }
 
 /// <summary>签名协议常量（spec §7 / 网关 GatewayConstants）。</summary>

@@ -13,7 +13,7 @@ content-digest、L2 数字信封、验签解密）与 HttpClient 适配层，商
 
 - 目标框架：`net8.0` + `netstandard2.0`（多目标）
 - 密码依赖（唯一指定路径，E5）：[BouncyCastle.Cryptography](https://www.nuget.org/packages/BouncyCastle.Cryptography)（Portable.BouncyCastle 后继包）
-- 算法套件（F1）：`WOP-RSA3072-SHA256` / `WOP-RSA4096-SHA256` / `WOP-SM2-SM3`（国密双套件全支持）
+- 算法套件（F1）：`WOP-RSA2048-SHA256` / `WOP-RSA3072-SHA256` / `WOP-RSA4096-SHA256` / `WOP-SM2-SM3`（国密双套件全支持）
 - 协议真源：[crypto-strategy-spec.md](https://github.com/wop-platform/wop-specs/blob/main/crypto/crypto-strategy-spec.md)（v0.3-reviewed）+ [wop-sdk-spec.md](https://github.com/wop-platform/wop-specs/blob/main/sdk/wop-sdk-spec.md)（v1.0-ratified）
 - 向量真源：[crypto-vectors.json](https://github.com/wop-platform/wop-specs/blob/main/crypto/crypto-vectors.json)（本仓 fixture 为字节级副本，禁手改）
 
@@ -28,7 +28,7 @@ using Wop.Sdk;
 
 var client = WopClient.Builder()
     .AppKey("your-app-key")
-    .Suite("WOP-RSA3072-SHA256")            // 或 WOP-SM2-SM3
+    .Suite("WOP-RSA2048-SHA256")            // 或 WOP-SM2-SM3
     .MerchantPrivateKey(merchantPrivateKey)  // PEM 或 Base64 单行（D12）
     .PlatformPublicKey(platformPublicKey)
     .Build();
@@ -57,6 +57,7 @@ if (result.Ok)
 
 | 套件 | 商户私钥 | 平台公钥 |
 |------|----------|----------|
+| `WOP-RSA2048-SHA256` | PKCS#8 DER（Base64/PEM），2048 位 | X.509 SubjectPublicKeyInfo DER（Base64/PEM） |
 | `WOP-RSA3072-SHA256` | PKCS#8 DER（Base64/PEM），3072 位 | X.509 SubjectPublicKeyInfo DER（Base64/PEM） |
 | `WOP-RSA4096-SHA256` | PKCS#8 DER，4096 位 | SPKI DER |
 | `WOP-SM2-SM3` | d = 32 字节大端标量（Base64，范围 [1, n-1]） | 未压缩点 `04‖X‖Y` 共 65 字节（Base64，on-curve 校验前置） |
@@ -91,6 +92,14 @@ VerifyResult c = client.VerifyCallback(callbackUrl, headersFromBody, rawBody);
   摘要不匹配 `DIGEST_MISMATCH`、dek alg 跨族 `ALG_MISMATCH`
 - **模糊**（防 oracle，文案钉死不区分原因细节）：验签失败 `VERIFY_FAILED`（"签名验证失败"）、
   解密失败 `DECRYPT_FAILED`（"解密失败"）——GCM tag 失败 / 密钥不符 / DEK 解包失败对外同句
+
+## 破坏性变更与预留字段
+
+- **破坏性变更**：一站式调用（`Execute`/`ExecuteAsync`）收到网关**非 2xx** 响应时现抛
+  `WopGatewayResponseException`（携带状态码与响应体），原行为为返回 `VerifyResult.Fail`；
+  非 2xx 不进验签（§7.5），catch 该异常后按状态码/响应体自行处置。
+- **P2 预留未生效**：配置项 `backupServerRoots` 与 `httpClient.maxRetryCount` 当前仅解析与校验，
+  不参与出向传输（无备用根切换、无自动重试）；P2 接线前请勿依赖其行为。
 
 ## 向量自测（conformance）
 

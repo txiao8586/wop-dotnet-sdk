@@ -54,20 +54,52 @@ public sealed class HttpClientTransport : IWopTransport
 
     /// <summary>以可插拔 HttpMessageHandler（含 DelegatingHandler）构造。</summary>
     public HttpClientTransport(HttpMessageHandler handler, string baseUrl)
-        : this(new HttpClient(handler), baseUrl)
+        : this(new HttpClient(handler, disposeHandler: false), baseUrl)
     {
     }
 
-    /// <summary>以网关基地址构造（共享进程级默认处理链）。</summary>
+    /// <summary>以网关基地址构造（§7.4.1 不跟随重定向）。</summary>
     public HttpClientTransport(string baseUrl)
-        : this(new HttpClient(), baseUrl)
+        : this(CreateDefaultHttpClient(), baseUrl)
     {
     }
 
-    /// <summary>发送：draft.Path 拼接 BaseURL；有 body 时设置 Content-Type: application/json。</summary>
+    /// <summary>按配置创建默认 HttpClient 适配器（AllowAutoRedirect=false）。</summary>
+    public static HttpClientTransport Create(string baseUrl, HttpClientSettings settings)
+    {
+        var client = CreateHttpClient(settings);
+        return new HttpClientTransport(client, baseUrl);
+    }
+
+    private static HttpClient CreateDefaultHttpClient() =>
+        CreateHttpClient(HttpClientSettings.Defaults);
+
+    private static HttpClient CreateHttpClient(HttpClientSettings settings)
+    {
+        var handler = CreateHandler(settings);
+        return new HttpClient(handler, disposeHandler: true)
+        {
+            Timeout = TimeSpan.FromMilliseconds(settings.ReadTimeout),
+        };
+    }
+
+    private static HttpMessageHandler CreateHandler(HttpClientSettings settings)
+    {
+#if NET5_0_OR_GREATER
+        return new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+            ConnectTimeout = TimeSpan.FromMilliseconds(settings.ConnectTimeout),
+        };
+#else
+        return new HttpClientHandler { AllowAutoRedirect = false };
+#endif
+    }
+
+    /// <summary>发送：§7.7 字符串拼接 serverRoot + path；有 body 时设置 Content-Type: application/json。</summary>
     public TransportResponse Send(RequestDraft draft)
     {
-        var target = _baseUrl.TrimEnd('/') + draft.Path;
+        var target = ConfigValidator.JoinUrl(_baseUrl, draft.Path);
         Uri uri;
         try
         {

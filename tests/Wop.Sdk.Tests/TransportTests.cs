@@ -76,10 +76,10 @@ public class TransportTests
     }
 
     [Fact]
-    public void Send_非法地址_配置类拒绝()
+    public void Send_非法基地址_配置类拒绝()
     {
-        var transport = new HttpClientTransport(new FakeHandler(_ => new HttpResponseMessage()), "");
-        var draft = Client().BuildRequest("GET", "not-a-url", null, SecurityLevel.L0);
+        var transport = new HttpClientTransport(new FakeHandler(_ => new HttpResponseMessage()), "://bad");
+        var draft = Client().BuildRequest("GET", "/q", null, SecurityLevel.L0);
         var ex = Assert.Throws<WopException>(() => transport.Send(draft));
         Assert.Equal(WopErrorCode.Config, ex.ErrorCode);
     }

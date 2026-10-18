@@ -9,8 +9,8 @@ EncryptedEnvelope.cs:33:33:62a8c53dd437bf77
 KeyCodec.cs:59:59:5defee2a28f15602
 SignHeader.cs:49:50:a3888e51e7e81825
 Transport.cs:52:52:b257026ca525f96e
-WopClient.cs:85:85:2a3454c1d05e7bed
-WopClient.cs:172:172:1948a7011f765777
+WopClient.cs:143:143:2a3454c1d05e7bed
+WopClient.cs:279:279:1948a7011f765777
 WopCrypto.cs:35:35:ad6d7a43eeef5081
 WopCrypto.cs:49:49:ad6d7a43eeef5081
 WopCrypto.cs:192:195:ef381b169e65e048

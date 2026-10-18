@@ -4,6 +4,7 @@ using Xunit;
 public class AlgorithmSuiteTests
 {
     [Theory]
+    [InlineData("WOP-RSA2048-SHA256", SuiteFamily.Rsa, 2048, "SHA256withRSA", "AES-256-GCM", "RSA-2048-OAEP", "sha-256")]
     [InlineData("WOP-RSA3072-SHA256", SuiteFamily.Rsa, 3072, "SHA256withRSA", "AES-256-GCM", "RSA-3072-OAEP", "sha-256")]
     [InlineData("WOP-RSA4096-SHA256", SuiteFamily.Rsa, 4096, "SHA256withRSA", "AES-256-GCM", "RSA-4096-OAEP", "sha-256")]
     [InlineData("WOP-SM2-SM3", SuiteFamily.Sm2, 0, "SM3withSM2", "SM4-GCM", "SM2", "sm3")]
@@ -24,7 +25,7 @@ public class AlgorithmSuiteTests
     [Theory]
     [InlineData("WOP-RSA3072-SM3", WopErrorCode.SuiteUnsupported)]   // 跨族：国际密钥+国密摘要（I5）
     [InlineData("WOP-SM2-SHA256", WopErrorCode.SuiteUnsupported)]    // 跨族：国密密钥+国际摘要（I5）
-    [InlineData("WOP-RSA2048-SHA256", WopErrorCode.SuiteUnsupported)] // 未支持密钥长度
+    [InlineData("WOP-RSA1024-SHA256", WopErrorCode.SuiteUnsupported)] // 未支持密钥长度
     [InlineData("WOP-SM4-SM3", WopErrorCode.SuiteUnsupported)]       // 未支持密钥算法
     [InlineData("WOP-RSA3072-SM4", WopErrorCode.SuiteUnsupported)]   // 未支持摘要算法
     public void Parse_非法组合支持类拒绝(string securityReq, WopErrorCode code)
