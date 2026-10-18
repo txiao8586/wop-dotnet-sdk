@@ -27,8 +27,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="fixtures\crypto-vectors.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Update="fixtures\interop-cases.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
