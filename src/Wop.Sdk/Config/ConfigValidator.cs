@@ -127,6 +127,12 @@ internal static class ConfigValidator
         {
             throw Config("请求 path 为空");
         }
+        // 绝对 URL 检查须先于 / 前缀检查，否则对 "https://..." 永远只报前缀错
+        if (path.StartsWith("http:", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("https:", StringComparison.OrdinalIgnoreCase))
+        {
+            throw Config("path 不得为绝对 URL: " + path);
+        }
         if (!path.StartsWith("/", StringComparison.Ordinal))
         {
             throw Config("path 须以 / 开头: " + path);
@@ -140,11 +146,6 @@ internal static class ConfigValidator
         {
             throw Config("path 不得含 query 或 fragment: " + path);
         }
-        if (path.StartsWith("http:", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith("https:", StringComparison.OrdinalIgnoreCase))
-        {
-            throw Config("path 不得为绝对 URL: " + path);
-        }
     }
 
     /// <summary>§7.7 字符串拼接 serverRoot + path。</summary>
@@ -154,8 +155,7 @@ internal static class ConfigValidator
         var root = serverRoot.EndsWith("/", StringComparison.Ordinal)
             ? serverRoot.Substring(0, serverRoot.Length - 1)
             : serverRoot;
-        var trimmedPath = path.StartsWith("/", StringComparison.Ordinal) ? path : "/" + path;
-        return root + trimmedPath;
+        return root + path;
     }
 
     /// <summary>统一构造 configuration 异常（消息含字段名，§3.4）。</summary>

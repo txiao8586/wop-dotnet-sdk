@@ -7,6 +7,11 @@ using System.Threading.Tasks;
 using Wop.Sdk;
 using Xunit;
 
+// 配置加载链共享进程级全局态（cwd/env/缓存），相关类须串行执行
+[CollectionDefinition("config-global", DisableParallelization = true)]
+public class ConfigGlobalCollection { }
+
+[Collection("config-global")]
 public class WopConfigLoaderTests
 {
     static readonly JsonElement Keys = JsonDocument.Parse(File.OpenRead(

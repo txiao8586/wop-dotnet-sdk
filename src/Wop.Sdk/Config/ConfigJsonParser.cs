@@ -110,21 +110,15 @@ internal static class ConfigJsonParser
                 {
                     return;
                 }
-                if (reader.TokenType != JsonTokenType.PropertyName)
-                {
-                    throw Config("配置文件 JSON 解析失败: 对象结构非法");
-                }
-
+                // Utf8JsonReader 保证对象帧内非 EndObject 处必为 PropertyName（缺逗号等在
+                // Read() 即抛 JsonException），故不再重复判 token 类型
                 var key = reader.GetString() ?? "";
                 if (!keys.Add(key))
                 {
                     throw Config("配置字段 " + key + " 重复: " + key);
                 }
 
-                if (!reader.Read())
-                {
-                    throw Config("配置文件 JSON 解析失败: 意外结束");
-                }
+                reader.Read(); // 值 token；截断/畸形由 Read() 抛 JsonException 统一拒绝
 
                 if (!nestedHttpClient && key == "httpClient")
                 {
@@ -143,7 +137,6 @@ internal static class ConfigJsonParser
                     SkipValue(ref reader);
                 }
             }
-            throw Config("配置文件 JSON 解析失败: 对象未闭合");
         }
 
         /// <summary>跳过任意 JSON 值（未知字段忽略，§4.4）。</summary>
@@ -158,23 +151,17 @@ internal static class ConfigJsonParser
                 case JsonTokenType.Null:
                     return;
                 case JsonTokenType.StartObject:
+                    // 同上：对象帧内 token 位置由 tokenizer 保证，截断由 Read() 抛 JsonException
                     while (reader.Read())
                     {
                         if (reader.TokenType == JsonTokenType.EndObject)
                         {
                             return;
                         }
-                        if (reader.TokenType != JsonTokenType.PropertyName)
-                        {
-                            throw Config("配置文件 JSON 解析失败: 对象结构非法");
-                        }
-                        if (!reader.Read())
-                        {
-                            throw Config("配置文件 JSON 解析失败: 意外结束");
-                        }
+                        reader.Read();
                         SkipValue(ref reader);
                     }
-                    throw Config("配置文件 JSON 解析失败: 对象未闭合");
+                    break;
                 case JsonTokenType.StartArray:
                     while (reader.Read())
                     {
@@ -184,9 +171,7 @@ internal static class ConfigJsonParser
                         }
                         SkipValue(ref reader);
                     }
-                    throw Config("配置文件 JSON 解析失败: 数组未闭合");
-                default:
-                    throw Config("配置文件 JSON 解析失败: 非法 token");
+                    break;
             }
         }
     }
