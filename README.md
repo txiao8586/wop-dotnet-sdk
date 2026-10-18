@@ -28,7 +28,7 @@ using Wop.Sdk;
 
 var client = WopClient.Builder()
     .AppKey("your-app-key")
-    .Suite("WOP-RSA3072-SHA256")            // 或 WOP-SM2-SM3
+    .Suite("WOP-RSA2048-SHA256")            // 或 WOP-SM2-SM3
     .MerchantPrivateKey(merchantPrivateKey)  // PEM 或 Base64 单行（D12）
     .PlatformPublicKey(platformPublicKey)
     .Build();
