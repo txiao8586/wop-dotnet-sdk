@@ -10,7 +10,9 @@ namespace Wop.Sdk;
 /// - I1：唯一出向可选透传头，恒不入签（签名落盘后写入）；
 /// - I2：构造即校验——trim 前按原值扫描控制字符（&lt; 0x20 或 == 0x7F，含 CR/LF/NUL/DEL，
 ///   防头注入）、trim（G2 TrimAll 同集：空格、\t、\n、\x0B、\f、\r；不用 Trim() 的
-///   Unicode 空白超集）后为空视为未设置、UTF-8 字节 &gt; 128 拒（网关 header 缓冲按字节计）；
+///   Unicode 空白超集）后为空视为未设置、显式值含非 ASCII（&gt; 0x7F）拒
+///   （.NET HttpClient 头值按 Latin-1 写出，CJK 到网关必乱码）、
+///   UTF-8 字节 &gt; 128 拒（网关 header 缓冲按字节计）；
 /// - I3：未传/空白 → 缺省生成 UUID 去连字符（小写 32 hex，v4 语义），最终头恒存在。
 /// </summary>
 internal static class RequestId
@@ -58,6 +60,15 @@ internal static class RequestId
         if (trimmed.Length == 0)
         {
             return null;
+        }
+        foreach (var ch in trimmed)
+        {
+            if (ch > 0x7F)
+            {
+                // shortcut: 非ASCII显式值在.NET传输层Latin-1乱码,待网关支持UTF-8头后放开
+                throw new WopException(WopErrorCode.Config,
+                    "requestId 含非 ASCII 字符（.NET HttpClient 头值按 Latin-1 写出，上行必乱码）");
+            }
         }
         var utf8Len = Encoding.UTF8.GetByteCount(trimmed);
         if (utf8Len > 128)

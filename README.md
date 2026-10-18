@@ -93,6 +93,14 @@ VerifyResult c = client.VerifyCallback(callbackUrl, headersFromBody, rawBody);
 - **模糊**（防 oracle，文案钉死不区分原因细节）：验签失败 `VERIFY_FAILED`（"签名验证失败"）、
   解密失败 `DECRYPT_FAILED`（"解密失败"）——GCM tag 失败 / 密钥不符 / DEK 解包失败对外同句
 
+## 破坏性变更与预留字段
+
+- **破坏性变更**：一站式调用（`Execute`/`ExecuteAsync`）收到网关**非 2xx** 响应时现抛
+  `WopGatewayResponseException`（携带状态码与响应体），原行为为返回 `VerifyResult.Fail`；
+  非 2xx 不进验签（§7.5），catch 该异常后按状态码/响应体自行处置。
+- **P2 预留未生效**：配置项 `backupServerRoots` 与 `httpClient.maxRetryCount` 当前仅解析与校验，
+  不参与出向传输（无备用根切换、无自动重试）；P2 接线前请勿依赖其行为。
+
 ## 向量自测（conformance）
 
 测试消费与网关 CI 同一份黄金向量副本（`tests/Wop.Sdk.Tests/fixtures/crypto-vectors.json`，禁止手改）：

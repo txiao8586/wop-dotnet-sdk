@@ -31,7 +31,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="config\wopSdkConfig.json">
+    <EmbeddedResource Include="Config\wopSdkConfig.json">
       <LogicalName>config/wopSdkConfig.json</LogicalName>
     </EmbeddedResource>
   </ItemGroup>

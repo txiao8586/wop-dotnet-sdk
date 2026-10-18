@@ -36,6 +36,7 @@ public class VectorConformanceTests
 
     static AsymmetricKeyMaterial Priv(string keyName) => keyName switch
     {
+        "rsa2048" => AsymmetricKeyMaterial.ParsePrivate(Vec("keys.rsa2048.privatePkcs8B64"), Suite("WOP-RSA2048-SHA256")),
         "rsa3072" => AsymmetricKeyMaterial.ParsePrivate(Vec("keys.rsa3072.privatePkcs8B64"), Suite("WOP-RSA3072-SHA256")),
         "rsa4096" => AsymmetricKeyMaterial.ParsePrivate(Vec("keys.rsa4096.privatePkcs8B64"), Suite("WOP-RSA4096-SHA256")),
         "sm2" => AsymmetricKeyMaterial.ParsePrivate(Vec("keys.sm2.privateDB64"), Suite("WOP-SM2-SM3")),
@@ -44,6 +45,7 @@ public class VectorConformanceTests
 
     static AsymmetricKeyMaterial Pub(string keyName) => keyName switch
     {
+        "rsa2048" => AsymmetricKeyMaterial.ParsePublic(Vec("keys.rsa2048.publicSpkiB64"), Suite("WOP-RSA2048-SHA256")),
         "rsa3072" => AsymmetricKeyMaterial.ParsePublic(Vec("keys.rsa3072.publicSpkiB64"), Suite("WOP-RSA3072-SHA256")),
         "rsa4096" => AsymmetricKeyMaterial.ParsePublic(Vec("keys.rsa4096.publicSpkiB64"), Suite("WOP-RSA4096-SHA256")),
         "sm2" => AsymmetricKeyMaterial.ParsePublic(Vec("keys.sm2.publicPointB64"), Suite("WOP-SM2-SM3")),
@@ -113,6 +115,15 @@ public class VectorConformanceTests
         AsymmetricKeyMaterial.ParsePrivate(Vec("keys.rsa4096.privatePkcs8B64"), Suite("WOP-RSA4096-SHA256"));
 
     [Fact]
+    public void Signature_RSA2048_产出字节级一致()
+    {
+        var sig = WopCrypto.Sign(Suite("WOP-RSA2048-SHA256"), Priv("rsa2048"), Utf8(Vec("signature.3.message")), null);
+        Assert.Equal(Vec("signature.3.expectedSigB64u"), sig);
+        Assert.Equal(342, sig.Length);
+        WopCrypto.Verify(Suite("WOP-RSA2048-SHA256"), Pub("rsa2048"), Utf8(Vec("signature.3.message")), sig, null);
+    }
+
+    [Fact]
     public void Signature_SM2_fixedK_产出字节级一致()
     {
         var k = new BigInteger(1, B64uDecode(Vec("inputs.sm2FixedKB64u")));
@@ -179,6 +190,13 @@ public class VectorConformanceTests
     {
         var plain = WopCrypto.UnwrapDek(Suite("WOP-RSA4096-SHA256"), Priv("rsa4096"), Vec("keyEncrypt.1.cipherB64u"));
         Assert.Equal(Vec("keyEncrypt.1.expectedPlaintext"), Encoding.UTF8.GetString(plain));
+    }
+
+    [Fact]
+    public void KeyEncrypt_OAEP2048_解包正向量()
+    {
+        var plain = WopCrypto.UnwrapDek(Suite("WOP-RSA2048-SHA256"), Priv("rsa2048"), Vec("keyEncrypt.6.cipherB64u"));
+        Assert.Equal(Vec("keyEncrypt.6.expectedPlaintext"), Encoding.UTF8.GetString(plain));
     }
 
     [Fact]
@@ -314,8 +332,8 @@ public class VectorConformanceTests
     {
         Assert.Equal(2, Root.Value.GetProperty("digest").GetArrayLength());
         Assert.Equal(2, Root.Value.GetProperty("messageEncrypt").GetArrayLength());
-        Assert.Equal(3, Root.Value.GetProperty("signature").GetArrayLength());
-        Assert.Equal(6, Root.Value.GetProperty("keyEncrypt").GetArrayLength());
+        Assert.Equal(4, Root.Value.GetProperty("signature").GetArrayLength());
+        Assert.Equal(7, Root.Value.GetProperty("keyEncrypt").GetArrayLength());
         Assert.Equal(2, Root.Value.GetProperty("dekPayload").GetArrayLength());
         Assert.Equal(12, Root.Value.GetProperty("formatRules").GetArrayLength());
     }

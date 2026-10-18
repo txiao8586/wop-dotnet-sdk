@@ -1,20 +1,24 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Wop.Sdk;
 using Xunit;
 
 public class RequestIdTests
 {
-    /// <summary>测试现场生成 RSA-2048 密钥对（PKCS#8 / SPKI，标准 Base64 单行）。</summary>
+    static readonly Lazy<JsonElement> Vectors = new(() =>
+        JsonDocument.Parse(File.OpenRead(
+            Path.Combine(AppContext.BaseDirectory, "fixtures", "crypto-vectors.json"))).RootElement);
+
+    /// <summary>RSA-2048 真源向量密钥（fixture keys.rsa2048，PKCS#8 / SPKI 标准 Base64 单行）。</summary>
     static (string Priv, string Pub) Rsa2048Material()
     {
-        using var rsa = RSA.Create(2048);
-        var priv = Convert.ToBase64String(rsa.ExportPkcs8PrivateKey());
-        var pub = Convert.ToBase64String(rsa.ExportSubjectPublicKeyInfo());
-        return (priv, pub);
+        var k = Vectors.Value.GetProperty("keys").GetProperty("rsa2048");
+        return (k.GetProperty("privatePkcs8B64").GetString()!, k.GetProperty("publicSpkiB64").GetString()!);
     }
 
     static WopClient Rsa2048Client()
@@ -119,6 +123,18 @@ public class RequestIdTests
     }
 
     [Fact]
+    public void 非ASCII显式值_构造期拒绝_Latin1传输层乱码防护()
+    {
+        var client = Rsa3072Client();
+        var ex = Assert.Throws<WopException>(() =>
+            client.BuildRequest("GET", "/p", null, SecurityLevel.L0, "请求-001"));
+        Assert.Equal(WopErrorCode.Config, ex.ErrorCode);
+        Assert.Contains("非 ASCII", ex.Message);
+        // 错误信息不得回显原值（configuration 错误仍守脱敏纪律）
+        Assert.DoesNotContain("请求", ex.Message);
+    }
+
+    [Fact]
     public void 长度按_trim后UTF8字节计_附录I_I2()
     {
         var client = Rsa3072Client();
@@ -127,10 +143,10 @@ public class RequestIdTests
         var ex129 = Assert.Throws<WopException>(() =>
             client.BuildRequest("GET", "/p", null, SecurityLevel.L0, new string('x', 129)));
         Assert.Contains("实际 129", ex129.Message);
-        var cjkOk = client.BuildRequest("GET", "/p", null, SecurityLevel.L0, new string('标', 42));
-        Assert.Equal(new string('标', 42), cjkOk.Headers[WopHeaders.RequestId]);
-        Assert.Throws<WopException>(() =>
-            client.BuildRequest("GET", "/p", null, SecurityLevel.L0, new string('标', 43)));
+        // CJK 现按非 ASCII 构造期拒（I2），长度路径仅对 ASCII 显式值可达
+        var cjk = Assert.Throws<WopException>(() =>
+            client.BuildRequest("GET", "/p", null, SecurityLevel.L0, new string('标', 42)));
+        Assert.Contains("非 ASCII", cjk.Message);
     }
 
     [Fact]

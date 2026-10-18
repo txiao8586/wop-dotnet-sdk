@@ -16,7 +16,8 @@ public sealed class WopClient
     private static WopClient? _defaultClient;
 
     /// <summary>出向日志钩子（附录 I/I3 日志义务）：出向请求构造点收到一行含最终
-    /// x-wop-request-id 值的日志（非敏感，豁免脱敏）。null → 缺省写 Console.Error；
+    /// x-wop-request-id 值的日志（非敏感，豁免脱敏）。null → 缺省写 Console.Out
+    /// （I3 INFO 级惯用通道：stderr 在容器采集器侧标 ERROR）。
     /// 测试/编排可整体替换。</summary>
     public static Action<string>? OutboundLogger { get; set; }
 
@@ -169,7 +170,7 @@ public sealed class WopClient
         }
         else
         {
-            Console.Error.WriteLine(logLine);
+            Console.Out.WriteLine(logLine);
         }
         return new RequestDraft(upperMethod, path!, outHeaders, wireBody);
     }
