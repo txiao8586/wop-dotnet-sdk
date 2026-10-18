@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "spec": "docs/crypto-strategy-spec.md v0.3-reviewed（附录 B.2 / D9）",
+    "spec": "crypto/crypto-strategy-spec.md v0.4-draft（附录 B.2 / D9）",
     "generated": "2026-08-28",
     "testOnly": true,
     "note": "全部密钥/k/IV 为 TEST-ONLY；固定 IV 仅为字节级断言，生产违反不变式 I4",
@@ -75,6 +75,14 @@
   ],
   "signature": [
     {
+      "id": "rsa2048-sign",
+      "key": "rsa2048",
+      "message": "WOP 跨语言测试向量 2026-08-28 — The quick brown fox jumps over the lazy dog.",
+      "expectedSigB64u": "XvDm9xvadfHeuGOYFJjOx3-Cgen1wYZzWa9cOWIVvrSJdgTQ30w1P-yQzb3t2URU-tUaMHKx5W0Q_dWX2WK6KZxITEKw0quVrHyVT6VfcaXpZF03RKa7at8CWndy-ftOTvfY3KS79u4YNDoyJQ8nt6y-f9-uOVmQ0c4hy-yNI_mBPbBk3x06UOB4RNGKluFAxZiJyv1aIBNPXZL6Xe3YBtzpbVZrm3j1c-umtRxeIQ2lE6vPx3fRu-cjF2nwyrbmdLZmRfxvR7lNxcBCw2gf_RWi4YDyeLqMO1Y8k1yG8am39pjXkz3Ge9Q5WHPcD9KvEMOcl4heQR0JMgz3jd4mRw",
+      "sigLenBytes": 256,
+      "b64uLen": 342
+    },
+    {
       "id": "rsa3072-sign",
       "key": "rsa3072",
       "message": "WOP 跨语言测试向量 2026-08-28 — The quick brown fox jumps over the lazy dog.",
@@ -98,17 +106,17 @@
       "sigLenBytes": 64,
       "b64uLen": 86,
       "format": "裸 r||s 各 32B 大端，线上禁 DER（D9）"
-    },
-    {
-      "id": "rsa2048-sign",
-      "key": "rsa2048",
-      "message": "WOP 跨语言测试向量 2026-08-28 — The quick brown fox jumps over the lazy dog.",
-      "expectedSigB64u": "XvDm9xvadfHeuGOYFJjOx3-Cgen1wYZzWa9cOWIVvrSJdgTQ30w1P-yQzb3t2URU-tUaMHKx5W0Q_dWX2WK6KZxITEKw0quVrHyVT6VfcaXpZF03RKa7at8CWndy-ftOTvfY3KS79u4YNDoyJQ8nt6y-f9-uOVmQ0c4hy-yNI_mBPbBk3x06UOB4RNGKluFAxZiJyv1aIBNPXZL6Xe3YBtzpbVZrm3j1c-umtRxeIQ2lE6vPx3fRu-cjF2nwyrbmdLZmRfxvR7lNxcBCw2gf_RWi4YDyeLqMO1Y8k1yG8am39pjXkz3Ge9Q5WHPcD9KvEMOcl4heQR0JMgz3jd4mRw",
-      "sigLenBytes": 256,
-      "b64uLen": 342
     }
   ],
   "keyEncrypt": [
+    {
+      "id": "oaep2048-unwrap",
+      "key": "rsa2048",
+      "cipherB64u": "XZx1rVmmuxWpkRyg_bDEsWcQvHFGgxW1DyolC4KZM12cOAj6jLUSyUcofFcoLlV8qDm72AdiR2nqzIhdklw4K-eGH5jmqbSbZaHaFZgbm540ADt1kHP5FascR9_3TXZjVabxv6yAk5z7TcukjJIAJlwtGG1Vvf1M4tv1c3zJcGp0Gkuu4BpHgB7TBeao3c7y5bTEj-yD7V1XRUQwc_QF0Iyy-AAjB99UB_i00TbjuJQUT1qdiskL7NPylo4oRBfbsRJUOLBuZoQ8CBW-nVlyFPatqt_box9IX5wrPQsUHOm90Z-EPIGK-J3XG09Q8v5kaTGKpOqyvMD4wP5kwXo0rQ",
+      "expectedPlaintext": "AES-256-GCM$AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8$EBESExQVFhcYGRob",
+      "params": "OAEP(SHA-256, MGF1-SHA-256, empty label) — 显式参数化(F2)",
+      "expect": "unwrap-equals-plaintext"
+    },
     {
       "id": "oaep3072-unwrap",
       "key": "rsa3072",
@@ -154,14 +162,6 @@
       "cipherB64u": "BHg6d-mtZjmeNpGrClMQUsW5CH_89nI-czPleXZbKuDxEbEauHrr7V8Xy4gvzfU7I48lYrL25lHyne9JrkMW5t4bm5iHKCLIsKNxZ-667Um1rjfOrsL4Am5-mZtuuOynXmXdmq2WgpVOiFEbZve4aQWuHEA0lV3a9_2-naepNKfNReot_YHPp1V9feu2Q54s",
       "expect": "reject",
       "note": "旧国标 C1C2C3 顺序密文，按 C1C3C2 解密必须失败 — 钉死顺序"
-    },
-    {
-      "id": "oaep2048-unwrap",
-      "key": "rsa2048",
-      "cipherB64u": "XZx1rVmmuxWpkRyg_bDEsWcQvHFGgxW1DyolC4KZM12cOAj6jLUSyUcofFcoLlV8qDm72AdiR2nqzIhdklw4K-eGH5jmqbSbZaHaFZgbm540ADt1kHP5FascR9_3TXZjVabxv6yAk5z7TcukjJIAJlwtGG1Vvf1M4tv1c3zJcGp0Gkuu4BpHgB7TBeao3c7y5bTEj-yD7V1XRUQwc_QF0Iyy-AAjB99UB_i00TbjuJQUT1qdiskL7NPylo4oRBfbsRJUOLBuZoQ8CBW-nVlyFPatqt_box9IX5wrPQsUHOm90Z-EPIGK-J3XG09Q8v5kaTGKpOqyvMD4wP5kwXo0rQ",
-      "expectedPlaintext": "AES-256-GCM$AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8$EBESExQVFhcYGRob",
-      "params": "OAEP(SHA-256, MGF1-SHA-256, empty label) — 显式参数化(F2)",
-      "expect": "unwrap-equals-plaintext"
     }
   ],
   "dekPayload": [
