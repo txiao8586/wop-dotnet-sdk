@@ -26,3 +26,7 @@ __pycache__
 .factory/metrics/
 .factory/var/
 .factory/regression/**/out/
+
+# 黄金向量按钉版拉取生成（SpecsPinnedFetch.cs），不落库
+tests/Wop.Sdk.Tests/fixtures/crypto-vectors.json
+tests/Wop.Sdk.Tests/fixtures/interop-cases.json
