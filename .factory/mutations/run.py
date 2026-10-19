@@ -6,9 +6,9 @@
 
 两种门：
 - guard（篡改类）：guard.py --files 单文件，秒级。
-- tests（行为破坏类）：run_tests.sh --no-lock 全量测试门（8 套件 +
-  badcase 双通道；--no-lock 跳过 plugin_lock/md_link_check——它们是
-  blob 锁与链接门，不消费被注入的行为面），单条分钟级，输出带耗时。
+- tests（行为破坏类）：final_gate_cmd 全量测试门（各仓自定；本仓
+  多套件 + badcase 双通道，blob 锁/链接门不消费被注入的行为面故以
+  --no-lock 形参跳过），单条分钟级，输出带耗时。
 - docstring（文档契约类）：factory-local.json docstring_gate_cmd（可选门，
   缺省不启用；未配置时 docstring 缺陷 SKIP，不构成全绿）——删除公开/内部
   符号 docstring → 门应拦截（对外 API 100% + 内部 ≥80%），单条秒级。
@@ -122,12 +122,21 @@ DOCSTRING_GATE = _docstring_gate_words()
 GUARD_TIMEOUT = 300
 TESTS_TIMEOUT = 600
 
-def write_stamp(evidence: str = "EVIDENCE-2026-08-24.md") -> str | None:
-    """全绿出口调用：当前周界 blob 写入 stamp（None = 无法绑定，不写）。"""
+def write_stamp(evidence: str | None = None) -> str | None:
+    """全绿出口调用：当前周界 blob 写入 stamp（None = 无法绑定，不写）。
+
+    evidence 指向人工证据留档名；缺省时取 mutations/ 目录最新
+    EVIDENCE-*.md（下游 xx-web-tools 反哺：静态默认文件名会过期——
+    写戳引用不存在的留档 = stamp 说谎）。无留档如实记「无留档文件」。
+    """
     import datetime
     blob = perimeter_blob()
     if not blob:
         return None
+    if evidence is None:
+        ev_dir = STAMP.parent
+        cands = sorted(ev_dir.glob("EVIDENCE-*.md")) if ev_dir.is_dir() else []
+        evidence = cands[-1].name if cands else "（无留档文件）"
     STAMP.write_text(json.dumps({
         "perimeter_blob": blob,
         "evidence": evidence,
@@ -235,7 +244,7 @@ def tracked_and_dirty(rel: str) -> bool:
 def run_gate(gate: str, target: str) -> int | None:
     """跑门返回退出码；超时返回 None（无效运行，见 judge）。
 
-    超时杀**整个进程组**（start_new_session + killpg）：run_tests.sh 会
+    超时杀**整个进程组**（start_new_session + killpg）：全量门会
     派生 pytest 孙进程，只杀门直子会留下孤儿继续读注入中的 target
     ——finally 还原字节与孤儿运行并发，污染后续缺陷轮（PR #33 审查）。
     """
@@ -329,6 +338,13 @@ def main() -> int:
     stamp_stale_banner()
     if args.only:
         wanted = {x.strip() for x in args.only.split(",") if x.strip()}
+        # 下游 xx-web-tools 反哺：未知 id 过滤结果为空仍以 0 退出写戳
+        # = 配置错误伪装成全量验证。缺失即拒绝（exit 2，对齐 guard 用法语义）。
+        all_ids = {d.id for d in defects}
+        if missing := wanted - all_ids:
+            print(f"配置错误: --only 含未知缺陷 id: {sorted(missing)}"
+                  f"（已知: {sorted(all_ids)}）", file=sys.stderr)
+            return 2
         defects = [d for d in defects if d.id in wanted]
 
     outcomes: list[Outcome] = []
@@ -336,7 +352,17 @@ def main() -> int:
 
     for d in defects:
         print(f"[{d.id}] {d.description}（gate={d.gate}）")
-        target = REPO_ROOT / d.target
+        # 下游 xx-web-tools 反哺：d.target 绝对路径会重置 REPO_ROOT 拼接
+        # （Path / 语义），`..` 可越仓——--defects 载外部 JSON 时指向仓外
+        # 文件注入+写回（进程非正常终止 = 注入残留落仓外）。resolve 后
+        # 必须仍在 REPO_ROOT 内。
+        target = (REPO_ROOT / d.target).resolve()
+        try:
+            target.relative_to(REPO_ROOT)
+        except ValueError:
+            outcomes.append(Outcome(d, "FAIL-config", f"target 越出仓库根: {d.target}"))
+            print("    FAIL-config: target 越出仓库根")
+            continue
         if not target.is_file():
             outcomes.append(Outcome(d, "FAIL-config", f"target 不存在: {d.target}"))
             print("    FAIL-config: target 不存在")
