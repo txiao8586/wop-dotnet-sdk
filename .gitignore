@@ -12,6 +12,9 @@ tests/**/coverage/
 tests/**/*.feature.cs
 
 
+# Mac
+.DS_Store
+
 # python
 .pytest_cache
 __pycache__
