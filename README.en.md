@@ -51,6 +51,29 @@ if (result.Ok)
 }
 ```
 
+## ISV Sub-Merchant Identity (ISV D-13)
+
+When calling business APIs on behalf of a sub-merchant, pass `subMchId` per request
+(value = the sub-merchant's `plf_co_id`):
+
+```csharp
+var draft = client.BuildRequest(
+    "POST", "/api/v1/orders", body, SecurityLevel.L0,
+    requestId: null, subMchId: "PLF-SUB-001");
+// or one-shot:
+var r = client.Execute(
+    "POST", "/api/v1/orders", body, SecurityLevel.L0,
+    requestId: null, subMchId: "PLF-SUB-001");
+```
+
+The SDK writes `x-wop-sub-mch-id` before signing and includes it in the `x-wop-sign`
+signedHeaders. Leading/trailing whitespace is trimmed; the value must be printable ASCII
+(0x20–0x7E), contain no internal whitespace, and be at most 128 characters — violations
+throw `WopException` (`WopErrorCode.Config`). Omitting it (or passing blank) keeps the
+app's own identity: the header is absent and the header set/signature are byte-identical
+to earlier versions (AC-20). The header takes effect only when the gateway sub-merchant
+gray gate is open for the app and the app is an ISV app (`app_type=20`).
+
 ## Key Preparation (D12 contract)
 
 Keys are passed as strings (PEM or single-line Base64) and parsed inside the SDK;

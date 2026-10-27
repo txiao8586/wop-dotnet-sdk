@@ -51,6 +51,26 @@ if (result.Ok)
 }
 ```
 
+## ISV 子商户身份（ISV D-13）
+
+代子商户调用业务 API 时，按请求传 `subMchId`（值 = 子商户 `plf_co_id`）：
+
+```csharp
+var draft = client.BuildRequest(
+    "POST", "/api/v1/orders", body, SecurityLevel.L0,
+    requestId: null, subMchId: "PLF-SUB-001");
+// 或一站式调用：
+var r = client.Execute(
+    "POST", "/api/v1/orders", body, SecurityLevel.L0,
+    requestId: null, subMchId: "PLF-SUB-001");
+```
+
+SDK 在签名前写入 `x-wop-sub-mch-id`，并自动纳入 `x-wop-sign` 的 signedHeaders。
+首尾空白 trim 后发送；仅接受可打印 ASCII（0x20–0x7E）、无内部空白、≤128 字符，
+违规抛 `WopException`（`WopErrorCode.Config`）。不传或纯空白 = 应用自身身份，头缺席，
+请求头集合与签名与旧版逐字节一致（AC-20）。该头仅在网关子商户灰度放行且应用为
+ISV 应用（`app_type=20`）时生效。
+
 ## 密钥准备（D12 分发契约）
 
 密钥入参为字符串（PEM 或 Base64 单行），SDK 内部解析；解析失败返回配置类**明确**错误（帮助集成自查）。

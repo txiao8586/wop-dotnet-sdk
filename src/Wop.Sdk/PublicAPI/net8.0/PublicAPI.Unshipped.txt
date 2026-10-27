@@ -63,10 +63,13 @@ Wop.Sdk.VerifyResult.Reason.get -> string?
 Wop.Sdk.WopClient
 Wop.Sdk.WopClient.BuildRequest(string! method, string! path, byte[]? body, Wop.Sdk.SecurityLevel level) -> Wop.Sdk.RequestDraft!
 Wop.Sdk.WopClient.BuildRequest(string! method, string! path, byte[]? body, Wop.Sdk.SecurityLevel level, string? requestId) -> Wop.Sdk.RequestDraft!
+Wop.Sdk.WopClient.BuildRequest(string! method, string! path, byte[]? body, Wop.Sdk.SecurityLevel level, string? requestId, string? subMchId) -> Wop.Sdk.RequestDraft!
 Wop.Sdk.WopClient.Execute(Wop.Sdk.IWopTransport! transport, string! method, string! path, byte[]? body, Wop.Sdk.SecurityLevel level) -> (Wop.Sdk.VerifyResult! Result, Wop.Sdk.TransportResponse! Response)
 Wop.Sdk.WopClient.Execute(Wop.Sdk.IWopTransport! transport, string! method, string! path, byte[]? body, Wop.Sdk.SecurityLevel level, string? requestId) -> (Wop.Sdk.VerifyResult! Result, Wop.Sdk.TransportResponse! Response)
+Wop.Sdk.WopClient.Execute(Wop.Sdk.IWopTransport! transport, string! method, string! path, byte[]? body, Wop.Sdk.SecurityLevel level, string? requestId, string? subMchId) -> (Wop.Sdk.VerifyResult! Result, Wop.Sdk.TransportResponse! Response)
 Wop.Sdk.WopClient.Execute(string! method, string! path, byte[]? body, Wop.Sdk.SecurityLevel level) -> Wop.Sdk.VerifyResult!
 Wop.Sdk.WopClient.Execute(string! method, string! path, byte[]? body, Wop.Sdk.SecurityLevel level, string? requestId) -> Wop.Sdk.VerifyResult!
+Wop.Sdk.WopClient.Execute(string! method, string! path, byte[]? body, Wop.Sdk.SecurityLevel level, string? requestId, string? subMchId) -> Wop.Sdk.VerifyResult!
 Wop.Sdk.WopClient.Suite.get -> Wop.Sdk.AlgorithmSuite!
 Wop.Sdk.WopClient.VerifyCallback(string! callbackUrl, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string!>>! headers, byte[]? body) -> Wop.Sdk.VerifyResult!
 Wop.Sdk.WopClient.VerifyResponse(string! method, string! path, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string!>>! headers, byte[]? body) -> Wop.Sdk.VerifyResult!
@@ -133,6 +136,7 @@ const Wop.Sdk.WopHeaders.Encrypt = "x-wop-encrypt" -> string!
 const Wop.Sdk.WopHeaders.Nonce = "x-wop-nonce" -> string!
 const Wop.Sdk.WopHeaders.RequestId = "x-wop-request-id" -> string!
 const Wop.Sdk.WopHeaders.Sign = "x-wop-sign" -> string!
+const Wop.Sdk.WopHeaders.SubMchId = "x-wop-sub-mch-id" -> string!
 const Wop.Sdk.WopHeaders.Timestamp = "x-wop-timestamp" -> string!
 const Wop.Sdk.WopSignProtocol.ExpiredSecondsDefault = 1800 -> long
 const Wop.Sdk.WopSignProtocol.ExpiredSecondsMax = 86400 -> long

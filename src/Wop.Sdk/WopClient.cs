@@ -99,13 +99,21 @@ public sealed class WopClient
     /// D2：无 body（GET/空体）→ digest 头缺席；有 body 必产且必入 signedHeaders（I1）。
     /// L2 需要非空 body。</summary>
     public RequestDraft BuildRequest(string method, string path, byte[]? body, SecurityLevel level) =>
-        BuildRequest(method, path, body, level, requestId: null);
+        BuildRequest(method, path, body, level, requestId: null, subMchId: null);
 
     /// <summary>带商户请求标识的出向构造（wop-specs 附录 I）：<paramref name="requestId"/>
     /// 为不含个人数据的不透明关联标识，恒不入签（签名落盘后写入头）；null/空白 → 缺省生成
     /// UUID 去连字符（头恒存在），显式传值 trim 后原值上行；控制字符（trim 前原值扫描）与
     /// 超长（trim 后 UTF-8 字节 &gt; 128）构造即拒。</summary>
-    public RequestDraft BuildRequest(string method, string path, byte[]? body, SecurityLevel level, string? requestId)
+    public RequestDraft BuildRequest(string method, string path, byte[]? body, SecurityLevel level, string? requestId) =>
+        BuildRequest(method, path, body, level, requestId, subMchId: null);
+
+    /// <summary>带 ISV 子商户身份的出向构造（ISV D-13）：<paramref name="subMchId"/> 为子商户
+    /// plf_co_id，签名前写入 x-wop-sub-mch-id 并自动纳入 signedHeaders；null/空白 = 应用自身
+    /// 身份（头缺席，行为与旧版逐字节一致，AC-20）。值须为可打印 ASCII、无内部空白、
+    /// trim 后 ≤ 128 字符，违规构造即拒。</summary>
+    public RequestDraft BuildRequest(string method, string path, byte[]? body, SecurityLevel level,
+        string? requestId, string? subMchId)
     {
         var upperMethod = (method ?? "").Trim().ToUpperInvariant();
         if (upperMethod.Length == 0)
@@ -115,6 +123,8 @@ public sealed class WopClient
         ConfigValidator.ValidateApiPath(path ?? "");
         // 附录 I/I2：requestId 构造即校验（fail-fast，不延迟到发送前）
         var resolvedRequestId = RequestId.Resolve(requestId);
+        // ISV D-13：subMchId 同样构造即校验
+        var resolvedSubMchId = SubMchId.Resolve(subMchId);
         var hasBody = body is { Length: > 0 };
         if (level == SecurityLevel.L2 && !hasBody)
         {
@@ -127,6 +137,11 @@ public sealed class WopClient
             [WopHeaders.Timestamp] = _clock().ToString(System.Globalization.CultureInfo.InvariantCulture),
             [WopHeaders.Nonce] = _nonceGen(),
         };
+        // ISV D-13：签名前写入，signedHeaders 自动包含；缺席时头集合与旧行为完全一致
+        if (resolvedSubMchId != null)
+        {
+            headers[WopHeaders.SubMchId] = resolvedSubMchId;
+        }
 
         byte[]? wireBody = null;
         if (level == SecurityLevel.L2)
@@ -223,17 +238,23 @@ public sealed class WopClient
 
     /// <summary>一站式调用：BuildRequest → 内置 transport 发送 → 非 2xx 拦截 → VerifyResponse。</summary>
     public VerifyResult Execute(string method, string path, byte[]? body, SecurityLevel level) =>
-        Execute(method, path, body, level, requestId: null);
+        Execute(method, path, body, level, requestId: null, subMchId: null);
 
     /// <summary>一站式调用（附录 I）：requestId 经请求级选项透传上行，语义同
     /// <see cref="BuildRequest(string,string,byte[],SecurityLevel,string?)"/>。</summary>
-    public VerifyResult Execute(string method, string path, byte[]? body, SecurityLevel level, string? requestId)
+    public VerifyResult Execute(string method, string path, byte[]? body, SecurityLevel level, string? requestId) =>
+        Execute(method, path, body, level, requestId, subMchId: null);
+
+    /// <summary>一站式调用（附录 I + ISV D-13）：requestId 与 subMchId 经请求级选项透传上行，
+    /// 语义同 <see cref="BuildRequest(string,string,byte[],SecurityLevel,string?,string?)"/>。</summary>
+    public VerifyResult Execute(string method, string path, byte[]? body, SecurityLevel level,
+        string? requestId, string? subMchId)
     {
         if (_transport == null)
         {
             throw new WopException(WopErrorCode.Config, "未配置传输层，请使用 FromConfig 或 DefaultClient");
         }
-        var draft = BuildRequest(method, path, body, level, requestId);
+        var draft = BuildRequest(method, path, body, level, requestId, subMchId);
         var response = _transport.Send(draft);
         EnsureSuccessStatus(response);
         return Verify(draft.Method, draft.Path, response.Headers, response.Body);
@@ -242,18 +263,24 @@ public sealed class WopClient
     /// <summary>一站式调用：BuildRequest → transport 发送 → VerifyResponse（F6）。</summary>
     public (VerifyResult Result, TransportResponse Response) Execute(IWopTransport transport,
         string method, string path, byte[]? body, SecurityLevel level) =>
-        Execute(transport, method, path, body, level, requestId: null);
+        Execute(transport, method, path, body, level, requestId: null, subMchId: null);
 
     /// <summary>一站式调用（附录 I）：requestId 经请求级选项透传上行，语义同
     /// <see cref="BuildRequest(string,string,byte[],SecurityLevel,string?)"/>。</summary>
     public (VerifyResult Result, TransportResponse Response) Execute(IWopTransport transport,
-        string method, string path, byte[]? body, SecurityLevel level, string? requestId)
+        string method, string path, byte[]? body, SecurityLevel level, string? requestId) =>
+        Execute(transport, method, path, body, level, requestId, subMchId: null);
+
+    /// <summary>一站式调用（附录 I + ISV D-13）：requestId 与 subMchId 经请求级选项透传上行，
+    /// 语义同 <see cref="BuildRequest(string,string,byte[],SecurityLevel,string?,string?)"/>。</summary>
+    public (VerifyResult Result, TransportResponse Response) Execute(IWopTransport transport,
+        string method, string path, byte[]? body, SecurityLevel level, string? requestId, string? subMchId)
     {
         if (transport == null)
         {
             throw new WopException(WopErrorCode.Config, "transport 为空");
         }
-        var draft = BuildRequest(method, path, body, level, requestId);
+        var draft = BuildRequest(method, path, body, level, requestId, subMchId);
         var response = transport.Send(draft);
         EnsureSuccessStatus(response);
         return (Verify(draft.Method, draft.Path, response.Headers, response.Body), response);
