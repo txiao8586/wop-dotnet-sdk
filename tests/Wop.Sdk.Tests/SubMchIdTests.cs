@@ -104,6 +104,27 @@ public class SubMchIdTests
         Assert.False(draft.Headers.ContainsKey(WopHeaders.SubMchId));
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void 子商户头_未传或空白_L2_签名与报文逐字节同旧行为_AC20(string? subMchId)
+    {
+        // 复用 interop 的确定性随机流（空种子 → 恒 0x5A 填充）：CEK/IV/OAEP seed 两个实例同源，
+        // 两版 L2 出向字节方可逐字节比对
+        WopClient Deterministic() => WopClientTests.RsaBuilder()
+            .WithRandom(new HexStreamRandom(Array.Empty<byte>()))
+            .Build();
+        var body = Encoding.UTF8.GetBytes("{\"amount\":1}");
+        var baseline = Deterministic().BuildRequest("POST", "/api/transfer", body, SecurityLevel.L2, null);
+        var draft = Deterministic().BuildRequest("POST", "/api/transfer", body, SecurityLevel.L2, null, subMchId);
+
+        Assert.False(draft.Headers.ContainsKey(WopHeaders.SubMchId));
+        Assert.Equal(baseline.Headers[WopHeaders.Sign], draft.Headers[WopHeaders.Sign]);
+        Assert.Equal(baseline.Headers[WopHeaders.Encrypt], draft.Headers[WopHeaders.Encrypt]);
+        Assert.Equal(baseline.WireBody, draft.WireBody);
+    }
+
     // ==================== 校验边界 ====================
 
     [Fact]
@@ -237,4 +258,5 @@ public class SubMchIdTests
             return new TransportResponse(200, new Dictionary<string, string>(), Array.Empty<byte>());
         }
     }
+
 }
