@@ -66,10 +66,11 @@ var r = client.Execute(
 ```
 
 SDK 在签名前写入 `x-wop-sub-mch-id`，并自动纳入 `x-wop-sign` 的 signedHeaders。
-首尾空白 trim 后发送；仅接受可打印 ASCII（0x20–0x7E）、无内部空白、≤128 字符，
-违规抛 `WopException`（`WopErrorCode.Config`）。不传或纯空白 = 应用自身身份，头缺席，
-请求头集合与签名与旧版逐字节一致（AC-20）。该头仅在网关子商户灰度放行且应用为
-ISV 应用（`app_type=20`）时生效。
+**仅首尾空格可 trim；任何控制字符即便在首尾也直接拒**；仅接受可打印 ASCII（0x20–0x7E）、
+无内部空白、≤128 字符，违规抛 `WopException`（`WopErrorCode.Config`）。不传或纯空白 =
+应用自身身份，头缺席，请求头集合与签名与旧版逐字节一致（AC-20）。该头仅对 ISV 应用
+（`app_type=20`）生效；**前置**：网关须已部署 D-13（条件入签），未部署时该头按未知头透传、
+请求以应用自身身份执行，子商户身份会静默丢失。
 
 ## 密钥准备（D12 分发契约）
 

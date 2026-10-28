@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using Wop.Sdk;
 using Xunit;
@@ -97,11 +98,47 @@ public class SubMchIdTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void 子商户头_未传或空白_L2_头缺席_AC20(string? subMchId)
+    public void 子商户头_未传或空白_L2_头缺席且签名逐字节同旧行为_AC20(string? subMchId)
     {
-        var draft = Client().BuildRequest("POST", "/api/transfer", Encoding.UTF8.GetBytes("{\"amount\":1}"),
-            SecurityLevel.L2, null, subMchId);
+        // L2 含 CSPRNG CEK/IV：注入同序列随机流后，未携带子商户身份的出向字节应与旧行为逐字节一致
+        var body = Encoding.UTF8.GetBytes("{\"amount\":1}");
+        RequestDraft Build(string? id, SecureRandom random) => WopClientTests.RsaBuilder()
+            .WithClock(() => 1774340000000)
+            .WithNonce(() => "l2-nonce-deterministic")
+            .WithRandom(random)
+            .Build()
+            .BuildRequest("POST", "/api/transfer", body, SecurityLevel.L2, null, id);
+
+        var baseline = Build(null, new SeqRandom());
+        var draft = Build(subMchId, new SeqRandom());
+
         Assert.False(draft.Headers.ContainsKey(WopHeaders.SubMchId));
+        Assert.Equal(baseline.Headers[WopHeaders.Sign], draft.Headers[WopHeaders.Sign]);
+        Assert.Equal(baseline.Headers[WopHeaders.Encrypt], draft.Headers[WopHeaders.Encrypt]);
+        Assert.Equal(baseline.WireBody, draft.WireBody);
+    }
+
+    /// <summary>确定性顺序流：第 n 字节 = (n*7+1) &amp; 0xFF（与 MutationKillBoundaryTests 同构）。</summary>
+    sealed class SeqRandom : SecureRandom
+    {
+        private byte _n;
+
+        private void Fill(byte[] buffer)
+        {
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                buffer[i] = (byte)(_n++ * 7 + 1);
+            }
+        }
+
+        public override void NextBytes(byte[] bytes) => Fill(bytes);
+
+        public override void NextBytes(Span<byte> buffer)
+        {
+            var tmp = new byte[buffer.Length];
+            Fill(tmp);
+            tmp.CopyTo(buffer);
+        }
     }
 
     // ==================== 校验边界 ====================
@@ -237,4 +274,28 @@ public class SubMchIdTests
             return new TransportResponse(200, new Dictionary<string, string>(), Array.Empty<byte>());
         }
     }
+    // ==================== 入向不消费（附录 J/J3） ====================
+
+    [Fact]
+    public void 入向不消费子商户头_未入签额外携带仍通过()
+    {
+        var client = WopClientTests.RsaBuilder().Build();
+        var headers = new Dictionary<string, string>
+        {
+            [WopHeaders.AppKey] = "platform",
+            [WopHeaders.Timestamp] = "1724900000001",
+            [WopHeaders.Nonce] = "resp-nonce",
+        };
+        var signedNames = headers.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList();
+        var canonical = CanonicalRequest.Build("v1/1800", "GET", "/q", "",
+            CanonicalRequest.CanonicalHeaders(signedNames.ToDictionary(n => n, n => headers[n])));
+        var sig = WopCrypto.Sign(client.Suite, WopClientTests.RespKeyMaterial(client.Suite),
+            Encoding.UTF8.GetBytes(canonical), null);
+        headers[WopHeaders.Sign] = SignHeader.Build(client.Suite.SecurityReq, 1800, signedNames, sig);
+        headers[WopHeaders.SubMchId] = "PLF-SUB-001"; // 签名完成后追加：未入 signedHeaders
+
+        var result = client.VerifyResponse("GET", "/q", headers, null);
+        Assert.True(result.Ok);
+    }
+
 }

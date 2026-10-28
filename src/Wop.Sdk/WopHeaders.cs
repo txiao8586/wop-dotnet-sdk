@@ -14,7 +14,8 @@ public static class WopHeaders
     /// 存在即必须入签，缺席 = 应用自身身份（AC-20）。</summary>
     public const string SubMchId = "x-wop-sub-mch-id";
 
-    /// <summary>商户请求标识透传头（wop-specs 附录 I：唯一可选透传头，恒不入签）。</summary>
+    /// <summary>商户请求标识透传头（wop-specs 附录 I：唯一可选**透传**头，恒不入签；
+    /// 子商户身份头见 <see cref="SubMchId"/>：可选但出现即入签）。</summary>
     public const string RequestId = "x-wop-request-id";
 }
 
