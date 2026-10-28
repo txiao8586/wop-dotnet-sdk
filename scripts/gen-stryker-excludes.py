@@ -42,8 +42,8 @@ SNAPSHOT = ROOT / "scripts" / "equivalent-span-snapshot.txt"
 #   EncryptedEnvelope 33 continue 删除后顺序执行与下轮迭代等价
 #   KeyCodec 59         标准 PEM 数据行不含 '-'（base64 字母表），StartsWith↔EndsWith 不可分
 #   Transport 52        baseUrl null 与 SH! 均使 Uri 构造失败、同文案
-#   WopClient 85        wireBody 非 null 且空不可达（上游 { Length: > 0 } 保证）
-#   WopClient 171       Verify 头字典 OrdinalIgnoreCase，To↔Upper 等价
+#   WopClient 158       wireBody 非 null 且空不可达（上游 { Length: > 0 } 保证）
+#   WopClient 306       Verify 头字典 OrdinalIgnoreCase，To↔Upper 等价
 #   WopCrypto 36,50     off 上界恒为 len-1，< ↔ <= 等价
 #   WopCrypto 183-186   OpenMessage 显式 fail-fast 与 catch 兜底同 Fuzzy 文案（保留代码、排除变异）
 #   AlgorithmSuite 40-48 构造函数体删除在本仓 nullable 严格编译下为 CS8618 编译错，
@@ -56,7 +56,7 @@ EQUIVALENT_LINES: dict[str, list[tuple[int, int]]] = {
     "EncryptedEnvelope.cs": [(33, 33)],
     "KeyCodec.cs":        [(59, 59)],
     "Transport.cs":       [(52, 52)],
-    "WopClient.cs":       [(143, 143), (279, 279)],
+    "WopClient.cs":       [(158, 158), (306, 306)],
     "WopCrypto.cs":       [(35, 35), (49, 49), (192, 195)],
     "AlgorithmSuite.cs":  [(40, 48)],
 }
@@ -75,8 +75,8 @@ ANCHORS: dict[tuple[str, int], str] = {
     ("EncryptedEnvelope.cs", 33): "continue;",
     ("KeyCodec.cs", 59): "if (t.Length == 0 || t.StartsWith",
     ("Transport.cs", 52): "_baseUrl = baseUrl ??",
-    ("WopClient.cs", 143): "if (wireBody is { Length: > 0 })",
-    ("WopClient.cs", 279): "headers[name.ToLowerInvariant()]",
+    ("WopClient.cs", 158): "if (wireBody is { Length: > 0 })",
+    ("WopClient.cs", 306): "headers[name.ToLowerInvariant()]",
     ("WopCrypto.cs", 35): "buffer[i] = off >= 0",
     ("WopCrypto.cs", 49): "buffer[i] = off >= 0",
     ("WopCrypto.cs", 192): "if (key.Length != suite.CekLength",
